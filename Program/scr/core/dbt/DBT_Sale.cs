@@ -93,8 +93,10 @@ namespace Program.scr.core.dbt
                     connection.Open();
                     using (var query = connection.CreateCommand())
                     {
-                        query.CommandText = "INSERT INTO Sale VALUES (@ID_Client, @ID_Employee, @ID_Product, @SaleDate, @TotalAmount, @Comment);";
-                        query.Parameters.AddWithValue("@ID_Client", obj.ID_Client);
+                        if(obj.ID_Client != null) query.CommandText = "INSERT INTO Sale VALUES (@ID_Client, @ID_Employee, @ID_Product, @SaleDate, @TotalAmount, @Comment);";
+                        else query.CommandText = "INSERT INTO Sale (ID_Employee, ID_Product, SaleDate, TotalAmount, Comment) VALUES (@ID_Employee, @ID_Product, @SaleDate, @TotalAmount, @Comment);";
+
+                        if (obj.ID_Client != null) query.Parameters.AddWithValue("@ID_Client", obj.ID_Client);
                         query.Parameters.AddWithValue("@ID_Employee", obj.ID_Employee);
                         query.Parameters.AddWithValue("@ID_Product", obj.ID_Product);
                         query.Parameters.AddWithValue("@SaleDate", obj.SaleDate);

@@ -25,4 +25,3 @@ namespace Program.scr.core
         }
     }
 }
-}

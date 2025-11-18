@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace Program.scr.core.dbt
 {
@@ -11,6 +12,33 @@ namespace Program.scr.core.dbt
         public string Address;
         public DateTime RegistrationDate;
 
+        public static DataTable GetAllTable()
+        {
+            DataTable dataTable = new DataTable();
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(SQL._sqlConnectStr))
+                {
+                    connection.Open();
+                    using (var query = connection.CreateCommand())
+                    {
+                        query.CommandText = "SELECT * FROM Client";
+                        using (var adapter = new SqlDataAdapter(query))
+                        {
+                            // Заполняем DataTable данными из результата запроса
+                            adapter.Fill(dataTable);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) // Рекомендуется ловить конкретное исключение и, возможно, логировать
+            {
+                // В случае ошибки возвращается пустая таблица
+                // Можно добавить логирование ошибки ex.Message
+                dataTable = new DataTable();
+            }
+            return dataTable;
+        }
 
         public static List<DBT_Client> GetAll()
         {
