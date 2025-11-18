@@ -1,145 +1,212 @@
--- Создание базы данных (если не существует)
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'SaltWholesaleDB')
-BEGIN
-    CREATE DATABASE SaltWholesaleDB;
-END
+-- Создание базы данных
+CREATE DATABASE MobilePhoneStore;
 GO
 
-USE SaltWholesaleDB;
+USE MobilePhoneStore;
 GO
 
--- 1. Таблица Поставщики (Suppliers)
-CREATE TABLE Suppliers (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    CompanyName NVARCHAR(255) NOT NULL,
-    ContactPerson NVARCHAR(255),
-    Phone NVARCHAR(50),
-    Email NVARCHAR(255),
-    Address NVARCHAR(500)
+-- 1. Таблица "Салон" (Salon)
+CREATE TABLE Salon (
+    ID_Salon INT IDENTITY(1,1) PRIMARY KEY,
+    Address NVARCHAR(255) NOT NULL,
+    Phone NVARCHAR(20) NOT NULL,
+    Manager NVARCHAR(100) NOT NULL,
+    Region NVARCHAR(100) NOT NULL
 );
-CREATE INDEX IX_Suppliers_CompanyName ON Suppliers(CompanyName);
+GO
 
--- 2. Таблица Товары (Products)
-CREATE TABLE Products (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    SupplierID INT NOT NULL,
+-- 2. Таблица "Сотрудник" (Employee)
+CREATE TABLE Employee (
+    ID_Employee INT IDENTITY(1,1) PRIMARY KEY,
+    FullName NVARCHAR(100) NOT NULL,
+    Position NVARCHAR(100) NOT NULL,
+    Phone NVARCHAR(20) NOT NULL,
+    Email NVARCHAR(255) NOT NULL,
+    Salary DECIMAL(10,2) NOT NULL CHECK (Salary > 0),
+    HireDate DATE NOT NULL,
+    ID_Salon INT NOT NULL
+);
+GO
+
+-- 3. Таблица "Клиент" (Client)
+CREATE TABLE Client (
+    ID_Client INT IDENTITY(1,1) PRIMARY KEY,
+    FullName NVARCHAR(100) NOT NULL,
+    Phone NVARCHAR(20) NOT NULL,
+    Email NVARCHAR(255) NOT NULL,
+    Address NVARCHAR(255) NOT NULL,
+    RegistrationDate DATE NOT NULL DEFAULT GETDATE()
+);
+GO
+
+-- 4. Таблица "Продукт" (Product)
+CREATE TABLE Product (
+    ID_Product INT IDENTITY(1,1) PRIMARY KEY,
     Name NVARCHAR(255) NOT NULL,
-    Category NVARCHAR(100),
-    UnitOfMeasure NVARCHAR(50),
-    PricePerUnit DECIMAL(10,2) NOT NULL CHECK (PricePerUnit >= 0),
-    Description NVARCHAR(MAX),
-    CONSTRAINT FK_Products_Suppliers FOREIGN KEY (SupplierID) REFERENCES Suppliers(ID) ON DELETE CASCADE ON UPDATE CASCADE
+    Type NVARCHAR(50) NOT NULL, -- Например: 'Телефон', 'Аксессуар'
+    Manufacturer NVARCHAR(100) NOT NULL,
+    Model NVARCHAR(100),
+    Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
+    Warranty NVARCHAR(50) -- Описание гарантии
 );
-CREATE INDEX IX_Products_SupplierID ON Products(SupplierID);
-CREATE INDEX IX_Products_Name ON Products(Name);
+GO
 
--- 3. Таблица Склад (Stock)
-CREATE TABLE Stock (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    ProductID INT NOT NULL,
-    QuantityOnStock DECIMAL(12,2) NOT NULL CHECK (QuantityOnStock >= 0),
-    LastUpdated DATETIME2 DEFAULT GETDATE(),
-    CONSTRAINT FK_Stock_Products FOREIGN KEY (ProductID) REFERENCES Products(ID) ON DELETE CASCADE ON UPDATE CASCADE
+-- 5. Таблица "Тарифный план" (TariffPlan)
+CREATE TABLE TariffPlan (
+    ID_Tariff INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(MAX) NOT NULL,
+    Cost DECIMAL(10,2) NOT NULL CHECK (Cost >= 0),
+    Features NVARCHAR(MAX) -- Особенности тарифа
 );
-CREATE INDEX IX_Stock_ProductID ON Stock(ProductID);
-CREATE INDEX IX_Stock_LastUpdated ON Stock(LastUpdated);
+GO
 
--- 4. Таблица Клиенты (Clients)
-CREATE TABLE Clients (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    FullName NVARCHAR(255) NOT NULL,
-    ContactPerson NVARCHAR(255),
-    Phone NVARCHAR(50),
-    Email NVARCHAR(255),
-    Address NVARCHAR(500)
+-- 6. Таблица "Продажа" (Sale)
+CREATE TABLE Sale (
+    ID_Sale INT IDENTITY(1,1) PRIMARY KEY,
+    ID_Client INT,
+    ID_Employee INT NOT NULL,
+    ID_Product INT NOT NULL,
+    SaleDate DATETIME2 NOT NULL DEFAULT GETDATE(),
+    TotalAmount DECIMAL(10,2) NOT NULL CHECK (TotalAmount >= 0),
+    Comment NVARCHAR(MAX)
 );
-CREATE INDEX IX_Clients_FullName ON Clients(FullName);
-CREATE INDEX IX_Clients_Email ON Clients(Email);
+GO
 
--- 5. Таблица Сотрудники (Employees)
-CREATE TABLE Employees (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    FullName NVARCHAR(255) NOT NULL,
-    Position NVARCHAR(100),
-    Phone NVARCHAR(50),
-    Email NVARCHAR(255),
-    HireDate DATE NOT NULL DEFAULT GETDATE()
+-- 7. Таблица "Контракт" (Contract)
+CREATE TABLE Contract (
+    ID_Contract INT IDENTITY(1,1) PRIMARY KEY,
+    ID_Client INT NOT NULL,
+    ID_Tariff INT NOT NULL,
+    ID_Employee INT NOT NULL,
+    SigningDate DATE NOT NULL DEFAULT GETDATE(),
+    Status NVARCHAR(50) NOT NULL -- Напр., 'Активен', 'Завершен'
 );
-CREATE INDEX IX_Employees_FullName ON Employees(FullName);
-CREATE INDEX IX_Employees_Position ON Employees(Position);
+GO
 
--- 6. Таблица Авторизация (Authorization)
+-- 8. Таблица "Авторизация" (Auth)
 CREATE TABLE Auth (
-    EmployeeID INT PRIMARY KEY,
-    Login NVARCHAR(100) UNIQUE NOT NULL,
-    PasswordHash NVARCHAR(255) NOT NULL, -- Хранить хеш пароля, а не сам пароль!
-    AccessLevel INT NOT NULL DEFAULT 0 CHECK (AccessLevel >= -1), -- -1 = заблокирован, 0+ = роли
-    CONSTRAINT FK_Auth_Employees FOREIGN KEY (EmployeeID) REFERENCES Employees(ID) ON DELETE CASCADE ON UPDATE CASCADE
+    ID_Auth INT IDENTITY(1,1) PRIMARY KEY,
+    ID_Employee INT NOT NULL UNIQUE, -- Каждый сотрудник имеет одну запись авторизации
+    Login NVARCHAR(50) NOT NULL UNIQUE,
+    Password NVARCHAR(255) NOT NULL,
+    AccessLevel NVARCHAR(50) NOT NULL -- Уровень доступа (напр., 'Администратор', 'Менеджер')
 );
-CREATE INDEX IX_Auth_Login ON Auth(Login);
-CREATE INDEX IX_Auth_AccessLevel ON Auth(AccessLevel);
+GO
 
--- 7. Таблица Заказы (Orders)
-CREATE TABLE Orders (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    ClientID INT NOT NULL,
-    EmployeeID INT NOT NULL,
-    OrderDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
-    TotalAmount DECIMAL(12,2) NOT NULL CHECK (TotalAmount >= 0),
-    Status NVARCHAR(50) NOT NULL DEFAULT 'Новый',
-    CONSTRAINT FK_Orders_Clients FOREIGN KEY (ClientID) REFERENCES Clients(ID) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT FK_Orders_Employees FOREIGN KEY (EmployeeID) REFERENCES Employees(ID) ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX IX_Orders_ClientID ON Orders(ClientID);
-CREATE INDEX IX_Orders_EmployeeID ON Orders(EmployeeID);
-CREATE INDEX IX_Orders_OrderDateTime ON Orders(OrderDateTime);
-CREATE INDEX IX_Orders_Status ON Orders(Status);
+-- Добавление индексов для внешних ключей (оптимизация запросов)
+CREATE INDEX IX_Employee_ID_Salon ON Employee(ID_Salon);
+CREATE INDEX IX_Sale_ID_Client ON Sale(ID_Client);
+CREATE INDEX IX_Sale_ID_Employee ON Sale(ID_Employee);
+CREATE INDEX IX_Sale_ID_Product ON Sale(ID_Product);
+CREATE INDEX IX_Contract_ID_Client ON Contract(ID_Client);
+CREATE INDEX IX_Contract_ID_Tariff ON Contract(ID_Tariff);
+CREATE INDEX IX_Contract_ID_Employee ON Contract(ID_Employee);
+CREATE INDEX IX_Auth_ID_Employee ON Auth(ID_Employee);
 
--- 8. Таблица Товары в заказе (OrderItems)
-CREATE TABLE OrderItems (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    OrderID INT NOT NULL,
-    ProductID INT NOT NULL,
-    Quantity DECIMAL(12,2) NOT NULL CHECK (Quantity > 0),
-    PriceAtOrderTime DECIMAL(10,2) NOT NULL CHECK (PriceAtOrderTime >= 0),
-    Subtotal AS (Quantity * PriceAtOrderTime) PERSISTED, -- Вычисляемое поле
-    CONSTRAINT FK_OrderItems_Orders FOREIGN KEY (OrderID) REFERENCES Orders(ID) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT FK_OrderItems_Products FOREIGN KEY (ProductID) REFERENCES Products(ID) ON DELETE NO ACTION ON UPDATE CASCADE -- Не удалять товар при удалении позиции заказа
-);
-CREATE INDEX IX_OrderItems_OrderID ON OrderItems(OrderID);
-CREATE INDEX IX_OrderItems_ProductID ON OrderItems(ProductID);
+-- Добавление внешних ключей с каскадным удалением и обновлением
 
--- 9. Таблица Услуги (Services)
-CREATE TABLE Services (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    Name NVARCHAR(255) NOT NULL,
-    Description NVARCHAR(MAX),
-    Cost DECIMAL(10,2) NOT NULL CHECK (Cost >= 0)
-);
-CREATE INDEX IX_Services_Name ON Services(Name);
+-- Связь Сотрудник -> Салон
+ALTER TABLE Employee
+ADD CONSTRAINT FK_Employee_Salon
+FOREIGN KEY (ID_Salon) REFERENCES Salon(ID_Salon)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
 
--- 10. Таблица Оказанные услуги (ProvidedServices)
-CREATE TABLE ProvidedServices (
-    ID INT IDENTITY(1,1) PRIMARY KEY,
-    ClientID INT NOT NULL,
-    EmployeeID INT NOT NULL,
-    ServiceID INT NOT NULL,
-    ServiceDateTime DATETIME2 NOT NULL DEFAULT GETDATE(),
-    Status NVARCHAR(50) NOT NULL DEFAULT 'В процессе',
-    CONSTRAINT FK_ProvidedServices_Clients FOREIGN KEY (ClientID) REFERENCES Clients(ID) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT FK_ProvidedServices_Employees FOREIGN KEY (EmployeeID) REFERENCES Employees(ID) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT FK_ProvidedServices_Services FOREIGN KEY (ServiceID) REFERENCES Services(ID) ON DELETE NO ACTION ON UPDATE CASCADE -- Не удалять услугу при удалении записи
-);
-CREATE INDEX IX_ProvidedServices_ClientID ON ProvidedServices(ClientID);
-CREATE INDEX IX_ProvidedServices_EmployeeID ON ProvidedServices(EmployeeID);
-CREATE INDEX IX_ProvidedServices_ServiceID ON ProvidedServices(ServiceID);
-CREATE INDEX IX_ProvidedServices_ServiceDateTime ON ProvidedServices(ServiceDateTime);
-CREATE INDEX IX_ProvidedServices_Status ON ProvidedServices(Status);
+-- Связь Продажа -> Клиент
+ALTER TABLE Sale
+ADD CONSTRAINT FK_Sale_Client
+FOREIGN KEY (ID_Client) REFERENCES Client(ID_Client)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
 
--- Дополнительные проверки (CHECK) и комментарии:
--- В OrderItems: ON DELETE NO ACTION для ProductID — чтобы не удалять товар из системы при удалении позиции заказа.
--- В ProvidedServices: аналогично — услуга должна существовать независимо от того, оказывалась ли она.
--- Поле AccessLevel в Authorization: -1 означает блокировку, остальные значения — уровни доступа (можно расширять по мере необходимости).
--- Использованы PERSISTED вычисляемые поля (Subtotal) для оптимизации.
+-- Связь Продажа -> Сотрудник
+ALTER TABLE Sale
+ADD CONSTRAINT FK_Sale_Employee
+FOREIGN KEY (ID_Employee) REFERENCES Employee(ID_Employee)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
 
--- Готово. База данных создана и готова к использованию.
+-- Связь Продажа -> Продукт
+ALTER TABLE Sale
+ADD CONSTRAINT FK_Sale_Product
+FOREIGN KEY (ID_Product) REFERENCES Product(ID_Product)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
+
+-- Связь Контракт -> Клиент
+ALTER TABLE Contract
+ADD CONSTRAINT FK_Contract_Client
+FOREIGN KEY (ID_Client) REFERENCES Client(ID_Client)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
+
+-- Связь Контракт -> Тарифный план
+ALTER TABLE Contract
+ADD CONSTRAINT FK_Contract_TariffPlan
+FOREIGN KEY (ID_Tariff) REFERENCES TariffPlan(ID_Tariff)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
+
+-- Связь Контракт -> Сотрудник
+ALTER TABLE Contract
+ADD CONSTRAINT FK_Contract_Employee
+FOREIGN KEY (ID_Employee) REFERENCES Employee(ID_Employee)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
+
+-- Связь Авторизация -> Сотрудник
+ALTER TABLE Auth
+ADD CONSTRAINT FK_Auth_Employee
+FOREIGN KEY (ID_Employee) REFERENCES Employee(ID_Employee)
+ON DELETE CASCADE
+ON UPDATE CASCADE;
+GO
+
+-- Дополнительные проверки (CHECK) для логической целостности
+-- Проверка, что дата заключения контракта не может быть в будущем
+ALTER TABLE Contract
+ADD CONSTRAINT CK_Contract_SigningDate
+CHECK (SigningDate <= CAST(GETDATE() AS DATE));
+GO
+
+-- Проверка, что дата регистрации клиента не может быть в будущем
+ALTER TABLE Client
+ADD CONSTRAINT CK_Client_RegistrationDate
+CHECK (RegistrationDate <= CAST(GETDATE() AS DATE));
+GO
+
+-- Проверка, что дата приема на работу сотрудника не может быть в будущем
+ALTER TABLE Employee
+ADD CONSTRAINT CK_Employee_HireDate
+CHECK (HireDate <= CAST(GETDATE() AS DATE));
+GO
+
+-- Проверка, что стоимость тарифного плана не может быть отрицательной
+ALTER TABLE TariffPlan
+ADD CONSTRAINT CK_TariffPlan_Cost
+CHECK (Cost >= 0);
+GO
+
+-- Проверка, что цена продукта не может быть отрицательной
+ALTER TABLE Product
+ADD CONSTRAINT CK_Product_Price
+CHECK (Price >= 0);
+GO
+
+-- Проверка, что зарплата сотрудника не может быть отрицательной
+ALTER TABLE Employee
+ADD CONSTRAINT CK_Employee_Salary
+CHECK (Salary >= 0);
+GO
+
+
+-- Вывод сообщения об успешном создании БД
+PRINT 'База данных MobilePhoneStore успешно создана!';
