@@ -136,7 +136,7 @@ namespace Program.scr.forms
                     }
                 );
             }
-            if (res == -1) MessageBox.Show("Ошибка! Один из ID не ссылается на запись в БД!");
+            if (res == -1) MessageBox.Show("Ошибка! Логин занят!");
             else this.Close();
         }
     }
